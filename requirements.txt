@@ -1,0 +1,9 @@
+# Requirements for SIH26171: On-device Visual Perception for Lightweight Browser Agents
+# All processing runs locally on your machine without external cloud APIs.
+
+playwright>=1.40.0
+opencv-python>=4.8.0
+pillow>=10.0.0
+pytesseract>=0.3.10
+streamlit>=1.30.0
+
