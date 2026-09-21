@@ -163,7 +163,7 @@ class BrowserController:
         if not self.page:
             raise RuntimeError("Browser is not running. Please call .start() first.")
 
-        if not url.startswith("http://") and not url.startswith("https://"):
+        if not (url.startswith("http://") or url.startswith("https://") or url.startswith("file://")):
             url = f"https://{url}"
 
         print(f"[Browser] Navigating to: {url}")
@@ -296,7 +296,110 @@ class BrowserController:
         """Clicks at specific screen pixel coordinates."""
         if not self.page:
             raise RuntimeError("Browser is not running.")
+        print(f"[Browser] Visual action: Clicking coordinates ({x}, {y})")
         self.page.mouse.click(x, y)
+
+    def click_element_by_selector(self, selector_or_text: str, timeout_ms: int = 2500) -> bool:
+        """
+        Playwright selector/text fallback click when visual detection is uncertain.
+        Attempts text-matching, role-matching, and CSS selectors.
+        """
+        if not self.page:
+            raise RuntimeError("Browser is not running.")
+
+        print(f"[Browser] Playwright fallback: Attempting locator click for '{selector_or_text}'...")
+        # 1. Try get_by_text (exact or case-insensitive)
+        try:
+            loc = self.page.get_by_text(selector_or_text, exact=False).first
+            if loc.is_visible(timeout=timeout_ms):
+                loc.click()
+                print(f"[Browser] Playwright fallback succeeded via text '{selector_or_text}'.")
+                return True
+        except Exception:
+            pass
+
+        # 2. Try get_by_role (button/link with name)
+        for role in ["button", "link"]:
+            try:
+                loc = self.page.get_by_role(role, name=selector_or_text).first
+                if loc.is_visible(timeout=timeout_ms // 2):
+                    loc.click()
+                    print(f"[Browser] Playwright fallback succeeded via role '{role}' name='{selector_or_text}'.")
+                    return True
+            except Exception:
+                pass
+
+        # 3. Try CSS selector or XPath directly
+        try:
+            loc = self.page.locator(selector_or_text).first
+            if loc.is_visible(timeout=timeout_ms // 2):
+                loc.click()
+                print(f"[Browser] Playwright fallback succeeded via selector '{selector_or_text}'.")
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    def type_text(self, text: str, delay_ms: int = 50):
+        """Types text character-by-character into currently focused element."""
+        if not self.page:
+            raise RuntimeError("Browser is not running.")
+        print(f"[Browser] Typing text: '{text}' (delay={delay_ms}ms)...")
+        self.page.keyboard.type(text, delay=delay_ms)
+
+    def press_key(self, key: str):
+        """Presses a single keyboard key (e.g. 'Enter', 'Tab', 'Escape')."""
+        if not self.page:
+            raise RuntimeError("Browser is not running.")
+        print(f"[Browser] Pressing key: '{key}'")
+        self.page.keyboard.press(key)
+
+    def scroll(self, direction: str = "down", amount: int = 300):
+        """Scrolls the viewport vertically."""
+        if not self.page:
+            raise RuntimeError("Browser is not running.")
+        delta = amount if direction == "down" else -amount
+        print(f"[Browser] Scrolling {direction} by {amount}px...")
+        self.page.mouse.wheel(0, delta)
+
+    def fill_input(self, selector: str, text: str) -> bool:
+        """Fills an input matching selector with text."""
+        if not self.page:
+            raise RuntimeError("Browser is not running.")
+        try:
+            loc = self.page.locator(selector).first
+            if loc.is_visible(timeout=2000):
+                loc.fill(text)
+                return True
+        except Exception:
+            pass
+        return False
+
+    def get_current_url(self) -> str:
+        """Returns the current page URL."""
+        if not self.page:
+            return ""
+        return self.page.url
+
+    def get_title(self) -> str:
+        """Returns current page title."""
+        if not self.page:
+            return ""
+        try:
+            return self.page.title()
+        except Exception:
+            return ""
+
+    def get_page_content_text(self) -> str:
+        """Returns visible body text of current page."""
+        if not self.page:
+            return ""
+        try:
+            return self.page.inner_text("body")
+        except Exception:
+            return ""
+
 
     def close(self):
         """Safely closes browser pages and stops Playwright."""

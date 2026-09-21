@@ -208,6 +208,38 @@ class PrivacyGuard:
         print(f"[PrivacyGuard] Saved protected image to: {output_path}")
         return output_path
 
+    def find_sensitive_elements(self, elements: List[Dict]) -> List[Dict]:
+        """
+        Backwards-compatible helper for Level 1 scripts and tests.
+        Takes detected tokens or elements and returns sensitive items with 'pii_type', 'matched_text', and 'box'.
+        """
+        sensitive_items, _ = self.find_sensitive_boxes(elements)
+        cat_to_pii = {
+            self.CAT_EMAIL: "email",
+            self.CAT_PHONE: "phone_number",
+            self.CAT_CARD: "credit_card",
+            self.CAT_PASSWORD: "api_key_or_secret",
+        }
+        results = []
+        for item in sensitive_items:
+            category = item.get("category", "")
+            pii_type = cat_to_pii.get(category, category.lower().replace(" ", "_"))
+            results.append({
+                "box": item["box"],
+                "category": category,
+                "pii_type": pii_type,
+                "matched_text": item.get("matched_text", ""),
+            })
+        return results
+
+    def mask_screenshot(self, image_path: str, sensitive_items: List[Dict]) -> Tuple[str, int]:
+        """
+        Backwards-compatible helper for Level 1 scripts and tests.
+        Masks image and returns (masked_path, count_of_redacted_regions).
+        """
+        masked_path = self.mask_image(image_path, sensitive_items)
+        return masked_path, len(sensitive_items)
+
     def process_screenshot(self, screenshot_path: str) -> Tuple[str, str, List[str]]:
         """
         Executes the complete local privacy protection pipeline:

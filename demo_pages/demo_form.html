@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH26171 - Demo Form Submission</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            width: 100%;
+            max-width: 580px;
+            padding: 36px 40px;
+        }
+        .header {
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        h1 {
+            font-size: 22px;
+            color: #0f172a;
+            margin: 0 0 6px 0;
+        }
+        p.desc {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        input[type="text"], input[type="email"], select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #f8fafc;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, select:focus {
+            border-color: #2563eb;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+        .btn-submit {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: background-color 0.2s ease;
+        }
+        .btn-submit:hover {
+            background-color: #1d4ed8;
+        }
+        #success-banner {
+            display: none;
+            margin-top: 24px;
+            padding: 18px 20px;
+            background-color: #dcfce7;
+            border: 1.5px solid #86efac;
+            border-radius: 8px;
+            color: #166534;
+            font-weight: 700;
+            font-size: 15px;
+            text-align: center;
+        }
+        .footer-note {
+            margin-top: 25px;
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            
+            <h1>Candidate Registration Form</h1>
+            <p class="desc">Autonomous browser agent multi-step perception & form fill test.</p>
+        </div>
+
+        <form id="demo-registration-form" onsubmit="handleFormSubmit(event)">
+            <div class="form-group">
+                <label for="full_name">Full Name</label>
+                <input type="text" id="full_name" name="name" placeholder="Enter your full name" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="email_addr">Email Address</label>
+                <input type="email" id="email_addr" name="email" value="participant@sih.gov.in" placeholder="name@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role">
+                    <option value="researcher">AI Researcher</option>
+                    <option value="participant" selected>Hackathon Participant</option>
+                    <option value="evaluator">Judge / Evaluator</option>
+                </select>
+            </div>
+
+            <button type="submit" id="submit-btn" class="btn-submit">Submit Application</button>
+        </form>
+
+        <div id="success-banner">
+            ✓ Form Submitted Successfully! Application recorded.
+        </div>
+
+        <div class="footer-note">
+            100% On-Device Visual Perception — Zero Cloud Screenshots Transmitted
+        </div>
+    </div>
+
+    <script>
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const name = document.getElementById('full_name').value || 'Candidate';
+            const banner = document.getElementById('success-banner');
+            banner.innerHTML = `✓ Form Submitted Successfully! Application recorded for ${name}.`;
+            banner.style.display = 'block';
+            console.log('Form submitted successfully for: ' + name);
+        }
+    </script>
+</body>
+</html>
+

@@ -38,9 +38,14 @@ from agent.privacy import PrivacyGuard
 
 
 MIN_OCR_CONFIDENCE = 20.0
+MIN_OCR_CONFIDENCE = 10.0
 TARGET_ALIASES = {
     "search_box": {"search_box", "search input", "search_input", "input", "textbox", "text_box"},
     "search_button": {"search_button", "button", "search", "google search", "bing search"},
+    "search_box": {"search_box", "search input", "search_input", "textbox", "text_box"},
+    "search_button": {"search_button", "google search", "bing search"},
+    "sign_in": {"sign in", "signin", "sign_in", "log in", "login", "sign in button"},
+    "submit_button": {"submit", "submit form", "submit button", "submit application"},
 }
 
 
@@ -125,12 +130,17 @@ class LocalVision:
 
         search_box = self._detect_search_box(protected_image, tokens)
         search_button = self._detect_search_button(tokens, search_box, image_width, image_height)
+        actionable_elements = self._detect_actionable_elements(tokens, image_width, image_height)
 
         elements = []
         if search_box:
             elements.append(search_box)
         if search_button:
             elements.append(search_button)
+        for act in actionable_elements:
+            # Avoid duplicating search button
+            if act["element"] != "search_button" or not search_button:
+                elements.append(act)
 
         debug_image = None
         if self.debug:
@@ -157,6 +167,8 @@ class LocalVision:
     def find_target(self, screenshot_path: str, target: str = "search_box") -> dict[str, Any] | None:
         wanted = self._normalise_target(target)
         result = self.analyse(screenshot_path)
+
+        # 1. Exact element name match
         for element in result["elements"]:
             if element["element"] == wanted:
                 return {
@@ -164,7 +176,54 @@ class LocalVision:
                     "x": element["x"],
                     "y": element["y"],
                     "confidence": element["confidence"],
+                    "box": element.get("box"),
+                    "method": element.get("method", "specialized_detector"),
                 }
+
+        # 2. Text / alias match in detected elements
+        for element in result["elements"]:
+            elem_name = str(element.get("element", "")).lower().strip()
+            matched = str(element.get("matched_text", "")).lower().strip()
+            if (
+                wanted == elem_name
+                or (matched and wanted == matched)
+                or (len(wanted) > 2 and wanted in elem_name)
+                or (matched and len(wanted) > 2 and (wanted in matched or matched in wanted))
+            ):
+                return {
+                    "element": element["element"],
+                    "x": element["x"],
+                    "y": element["y"],
+                    "confidence": element["confidence"],
+                    "box": element.get("box"),
+                    "method": element.get("method", "element_match"),
+                }
+
+        # 3. Direct OCR token / line search for arbitrary text targets
+        source = Path(screenshot_path)
+        if source.exists():
+            protected_path = source.with_name(f"{source.stem}_protected{source.suffix}")
+            check_path = str(protected_path) if protected_path.exists() else str(source)
+            tokens = self._ocr_tokens(check_path)
+            raw_img = cv2.imread(check_path)
+            h, w = raw_img.shape[:2] if raw_img is not None else (800, 1280)
+
+            direct_match = self._find_text_element_in_tokens(tokens, target, w, h)
+            if direct_match:
+                return {
+                    "element": direct_match["element"],
+                    "x": direct_match["x"],
+                    "y": direct_match["y"],
+                    "confidence": direct_match["confidence"],
+                    "box": direct_match.get("box"),
+                    "method": direct_match.get("method", "visual_ocr_match"),
+                }
+
+            # 4. Form input label search (e.g. "name", "full name", "email")
+            input_match = self._find_input_near_label(tokens, raw_img, target, w, h)
+            if input_match:
+                return input_match
+
         return None
 
     def _mask_privately(self, source: Path) -> tuple[Path, list[dict[str, Any]]]:
@@ -337,6 +396,154 @@ class LocalVision:
             "height": int(h),
             "confidence": round(float(token["confidence"]) / 100.0, 3),
         }
+
+    def _detect_actionable_elements(
+        self,
+        tokens: list[dict[str, Any]],
+        image_width: int,
+        image_height: int,
+    ) -> list[dict[str, Any]]:
+        actionable: list[dict[str, Any]] = []
+        action_phrases = [
+            ("sign_in", "sign in"),
+            ("login_button", "log in"),
+            ("submit_button", "submit"),
+            ("sign_up", "sign up"),
+        ]
+        for canonical, phrase in action_phrases:
+            match = self._find_text_element_in_tokens(tokens, phrase, image_width, image_height)
+            if match:
+                match["element"] = canonical
+                actionable.append(match)
+        return actionable
+
+    def _find_text_element_in_tokens(
+        self,
+        tokens: list[dict[str, Any]],
+        target_text: str,
+        image_width: int,
+        image_height: int,
+    ) -> dict[str, Any] | None:
+        target_lower = target_text.strip().lower()
+        if not target_lower:
+            return None
+
+        # 1. Multi-token / line matching
+        lines: dict[tuple[int, int, int], list[dict[str, Any]]] = {}
+        for token in tokens:
+            key = (
+                int(token.get("block_num", 0)),
+                int(token.get("par_num", 0)),
+                int(token.get("line_num", token.get("line_id", 0))),
+            )
+            lines.setdefault(key, []).append(token)
+
+        best_match_tokens = None
+        for line_tokens in lines.values():
+            ordered = sorted(line_tokens, key=lambda item: item["box"][0])
+            line_text = " ".join(item["text"] for item in ordered).lower()
+            if target_lower in line_text:
+                words = target_lower.split()
+                for i in range(len(ordered) - len(words) + 1):
+                    sub = " ".join(ordered[i + k]["text"].lower() for k in range(len(words)))
+                    if target_lower in sub:
+                        best_match_tokens = ordered[i : i + len(words)]
+                        break
+                if not best_match_tokens:
+                    best_match_tokens = [t for t in ordered if any(w in t["text"].lower() for w in words)]
+                break
+
+        # 2. Single token matching
+        if not best_match_tokens:
+            no_space_target = target_lower.replace(" ", "")
+            for token in tokens:
+                token_text = token["text"].strip().lower()
+                if (
+                    target_lower == token_text
+                    or (no_space_target and no_space_target == token_text)
+                    or (len(target_lower) > 3 and (target_lower in token_text or token_text in target_lower))
+                ):
+                    best_match_tokens = [token]
+                    break
+
+        if best_match_tokens:
+            merged_box = self._merge_token_boxes(best_match_tokens)
+            clamped = _clamp_box(merged_box, image_width, image_height)
+            avg_conf = sum(float(t.get("confidence", 80)) for t in best_match_tokens) / (100.0 * len(best_match_tokens))
+            matched_str = " ".join(t["text"] for t in best_match_tokens)
+            return _element_result(
+                target_text,
+                clamped,
+                max(0.55, min(0.95, avg_conf)),
+                "visual_ocr_match",
+                matched_str,
+            )
+
+        return None
+
+    def _find_input_near_label(
+        self,
+        tokens: list[dict[str, Any]],
+        image: np.ndarray | None,
+        target_name: str,
+        image_width: int,
+        image_height: int,
+    ) -> dict[str, Any] | None:
+        target_lower = target_name.strip().lower()
+        label_token = None
+        for token in tokens:
+            t_text = token["text"].strip().lower().rstrip(":")
+            if t_text in target_lower or (len(t_text) > 3 and t_text in {"name", "email", "username", "password"} and t_text in target_lower):
+                label_token = token
+                break
+
+        if not label_token:
+            return None
+
+        lx, ly, lw, lh = label_token["box"]
+
+        # Check if there are contours to the right or below this label
+        if image is not None:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            edges = cv2.Canny(gray, 30, 120)
+            closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 9), np.uint8))
+            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Candidate 1: Right of label
+            for c in contours:
+                cx, cy, cw, ch = cv2.boundingRect(c)
+                if abs(cy + ch / 2 - (ly + lh / 2)) < 25 and cx > lx and cw > 60:
+                    box = Box(cx, cy, cw, ch)
+                    return _element_result(
+                        f"{target_name}_field",
+                        _clamp_box(box, image_width, image_height),
+                        0.82,
+                        "opencv_input_near_label",
+                        label_token["text"],
+                    )
+
+            # Candidate 2: Directly below label
+            for c in contours:
+                cx, cy, cw, ch = cv2.boundingRect(c)
+                if cy > ly and abs(cy - (ly + lh)) < 40 and abs(cx - lx) < 60 and cw > 80:
+                    box = Box(cx, cy, cw, ch)
+                    return _element_result(
+                        f"{target_name}_field",
+                        _clamp_box(box, image_width, image_height),
+                        0.80,
+                        "opencv_input_below_label",
+                        label_token["text"],
+                    )
+
+        # Fallback: estimate input center offset from label
+        estimated_box = Box(lx + lw + 20, ly - 4, max(180, int(image_width * 0.25)), max(lh + 8, 36))
+        return _element_result(
+            f"{target_name}_field",
+            _clamp_box(estimated_box, image_width, image_height),
+            0.62,
+            "inferred_offset_from_label",
+            label_token["text"],
+        )
 
     def _save_debug_image(
         self,
