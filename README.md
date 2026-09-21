@@ -95,7 +95,7 @@ SIH26171/
 
 ---
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 Follow these steps in your terminal (**PowerShell** or **Command Prompt**):
 
@@ -123,7 +123,7 @@ Install Tesseract OCR to `C:\Program Files\Tesseract-OCR\` if not already instal
 
 ---
 
-## 🧪 Run Automated Tests
+## Run Automated Tests
 
 ### 1. Test Level 1 Privacy & Vision Modules
 ```powershell
@@ -143,7 +143,7 @@ This runs:
 
 ---
 
-## 🖥️ Launch the Streamlit Demo App
+## Launch the Streamlit Demo App
 
 To start the interactive UI dashboard, run:
 ```powershell
