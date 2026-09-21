@@ -4,7 +4,7 @@ A privacy-first, autonomous on-device browser agent that controls a web browser,
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 ### Level 1: On-Device Perception & Privacy Foundation
 1. **Local Visual Perception**: Extracts text and interactive UI elements using local OCR (`pytesseract`) and OpenCV contour detection on your device.
@@ -22,7 +22,7 @@ A privacy-first, autonomous on-device browser agent that controls a web browser,
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 SIH26171/
@@ -59,7 +59,7 @@ SIH26171/
 
 ---
 
-## 🎯 Supported Workflows & Demos
+## Supported Workflows & Demos
 
 ### Demo 1 — Primary Workflow (GitHub Login)
 - **Command**: `"Open GitHub and navigate to the login page"`
@@ -157,16 +157,16 @@ Streamlit will launch in your browser at `http://localhost:8501`.
 2. **Display Mode**: Toggle between **Visible Browser** (watch Chromium perform live clicks and typing) or **Headless** (fast background execution).
 3. **Execute**: Click **▶ RUN AGENT** to start the autonomous loop.
 4. **Inspect Tabs**:
-   - **⚡ AGENT**: Live agent status, execution banner, and step-by-step action history.
-   - **🔐 PRIVACY**: Privacy metrics (cloud upload = 0 bytes, PII items masked) and privacy-protected screenshot preview.
-   - **👁 PERCEPTION**: Visual perception annotations, bounding boxes, and detected UI element metrics.
-   - **📜 ACTIVITY**: Live terminal audit log and sub-goal execution timeline.
-   - **🔍 LEVEL 1 INSPECTOR**: Granular inspection of raw screenshot, OCR bounding boxes, and masked PII regions.
+   - **AGENT**: Live agent status, execution banner, and step-by-step action history.
+   - **PRIVACY**: Privacy metrics (cloud upload = 0 bytes, PII items masked) and privacy-protected screenshot preview.
+   - **PERCEPTION**: Visual perception annotations, bounding boxes, and detected UI element metrics.
+   - **ACTIVITY**: Live terminal audit log and sub-goal execution timeline.
+   - **LEVEL 1 INSPECTOR**: Granular inspection of raw screenshot, OCR bounding boxes, and masked PII regions.
 5. **Safety Control**: Click **■ STOP** at any time to safely halt execution.
 
 ---
 
-## 🛡️ Privacy & Compliance
+## Privacy & Compliance
 
 | Requirement | Implementation in this Project |
 | :--- | :--- |
